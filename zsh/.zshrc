@@ -188,3 +188,30 @@ notizi() {
 
 # Claude Code & user binaries on PATH (added 2026-06-02)
 export PATH="$HOME/.local/bin:$PATH"
+
+# === newproj: 快速新建科研课题骨架 (added 2026-06-02) ===
+# 用法: newproj <课题名>   →  在 ~/research/projects/<课题名> 下建 code/data/results/writing + README 并进入
+newproj() {
+    if [[ -z "$1" ]]; then
+        echo "用法: newproj <课题名>   (全小写、用连字符,如 vla-tactile)"
+        return 1
+    fi
+    local base="$HOME/research/projects/$1"
+    if [[ -e "$base" ]]; then
+        echo "已存在: $base"
+        return 1
+    fi
+    mkdir -p "$base"/{code,data,results,writing}
+    {
+        echo "# $1"
+        echo
+        echo "## 简介"
+        echo
+        echo "## 怎么跑"
+        echo
+        echo "## 进度"
+        echo "- $(date +%Y-%m-%d) 创建"
+    } > "$base/README.md"
+    echo "已创建课题: $base  (code/ data/ results/ writing/ + README.md)"
+    cd "$base"
+}
