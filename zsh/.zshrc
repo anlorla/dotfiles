@@ -116,21 +116,9 @@ function code {
     fi
 }
 
-function mail {
-    open -a "NetEase Email Master"
-}
 
-function msc {
-    open -a "NetEase Music"
-}
 
-function lark {
-    open -a "Lark"
-}
 
-function ztr {
-    open -a "Zotero"
-}
 
 function ya() {
 	local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
@@ -149,7 +137,6 @@ alias g++="g++ -std=c++17"
 
 alias ls="lsd -l"
 
-alias matlab="/Applications/MATLAB.app/bin/matlab -nodesktop"
 
 alias dsig='touch .gitignore && echo -e ".DS_Store\n**/.DS_Store\n.DS_Store?" > .gitignore' 
 
@@ -162,7 +149,6 @@ PROMPT='${ret_status} %{$fg[cyan]%}[%~]%{$reset_color%} $(git_prompt_info)'
 
 # echo -e "( '-')ノ(._. )"
 
-export PATH="/Applications/Matlab.app/bin/:$PATH"
 
 alias cat="bat"
 
