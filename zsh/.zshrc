@@ -178,7 +178,7 @@ tizi() {
     fi
     export all_proxy="$proxy_url" http_proxy="$proxy_url" https_proxy="$proxy_url"
     echo "Proxy enabled: $proxy_url"
-    echo -n "Current IP: "; curl -s https://ipinfo.io/ip; echo
+    echo -n "Current IP: "; curl -s -m 8 https://ipinfo.io/ip; echo
 }
 notizi() {
     unset all_proxy http_proxy https_proxy
