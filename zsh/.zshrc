@@ -165,3 +165,26 @@ PROMPT='${ret_status} %{$fg[cyan]%}[%~]%{$reset_color%} $(git_prompt_info)'
 export PATH="/Applications/Matlab.app/bin/:$PATH"
 
 alias cat="bat"
+
+# === Xray proxy shortcut (tizi) — added 2026-06-02 ===
+# `tizi`  : start xray (~/.config/xray/config.json) and route this shell through local HTTP proxy :8080
+# `notizi`: unset proxy env in this shell and stop xray
+tizi() {
+    local cfg="$HOME/.config/xray/config.json"
+    local proxy_url="http://127.0.0.1:8080"
+    if ! pgrep -f "xray run" >/dev/null 2>&1; then
+        nohup xray run -c "$cfg" >/tmp/tizi-xray.log 2>&1 &
+        sleep 2
+    fi
+    export all_proxy="$proxy_url" http_proxy="$proxy_url" https_proxy="$proxy_url"
+    echo "Proxy enabled: $proxy_url"
+    echo -n "Current IP: "; curl -s https://ipinfo.io/ip; echo
+}
+notizi() {
+    unset all_proxy http_proxy https_proxy
+    pkill -f "xray run" 2>/dev/null
+    echo "Proxy disabled"
+}
+
+# Claude Code & user binaries on PATH (added 2026-06-02)
+export PATH="$HOME/.local/bin:$PATH"
