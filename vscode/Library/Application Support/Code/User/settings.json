@@ -132,8 +132,12 @@
     "latex-workshop.message.error.show": true,
     "latex-workshop.message.warning.show": false,
 
-    // ---- mathematic.vscode-latex 扩展的 linter 默认开着，但它依赖 chktex，
-    //      而 BasicTeX 不含 chktex，于是每次保存都报 "chktex could not be found"。
-    //      想开 lint：sudo tlmgr install chktex，然后把下面改回 true。----
-    "latex.linter.enabled": false
+    // ---- chktex 语法检查（引号方向、$$、间距等 LaTeX 常见问题）。
+    //      原先报 "chktex could not be found" 的是 mathematic.vscode-latex 扩展，
+    //      它和 LaTeX Workshop 功能重叠，已卸载；改用 LaTeX Workshop 自带的 lint。
+    //      chktex 不在 BasicTeX 里，需先装：sudo tlmgr install chktex
+    //      exec.path 同样写绝对路径——GUI 启动的 VSCode 读不到 shell 的 PATH。----
+    "latex-workshop.linting.chktex.enabled": true,
+    "latex-workshop.linting.chktex.exec.path": "/Library/TeX/texbin/chktex",
+    "latex-workshop.linting.run": "onSave"
 }
