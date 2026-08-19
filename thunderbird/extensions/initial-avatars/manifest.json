@@ -1,0 +1,25 @@
+{
+  "manifest_version": 2,
+  "name": "Initial Avatars",
+  "version": "1.0.0",
+  "description": "邮件列表显示彩色首字母头像：纯本地生成，零网络请求。",
+  "author": "sanquine",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "initial-avatars@sanquine.local",
+      "strict_min_version": "115.0"
+    }
+  },
+  "permissions": ["messagesRead", "accountsRead"],
+  "background": { "scripts": ["background.js"] },
+  "experiment_apis": {
+    "avatarApi": {
+      "schema": "api/avatarApi.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "paths": [["avatarApi"]],
+        "script": "api/avatarApi.js"
+      }
+    }
+  }
+}

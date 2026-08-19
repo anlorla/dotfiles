@@ -164,7 +164,7 @@ tizi() {
     fi
     export all_proxy="$proxy_url" http_proxy="$proxy_url" https_proxy="$proxy_url"
     echo "Proxy enabled: $proxy_url"
-    echo -n "Current IP: "; curl -s -m 8 https://ipinfo.io/ip; echo
+    echo -n "Current IP: "; curl -s -m 8 https://ipinfo.io; echo
 }
 notizi() {
     unset all_proxy http_proxy https_proxy
@@ -200,4 +200,10 @@ newproj() {
     } > "$base/README.md"
     echo "已创建课题: $base  (code/ data/ results/ writing/ + README.md)"
     cd "$base"
+}
+
+# === codex 自动走本地代理（xray 已由 launchd 常驻：com.sanquine.xray）— added 2026-08-18 ===
+codex() {
+    local p="http://127.0.0.1:8080"
+    all_proxy="$p" http_proxy="$p" https_proxy="$p" command codex "$@"
 }

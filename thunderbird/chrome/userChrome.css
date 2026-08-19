@@ -1,0 +1,16 @@
+/* UI 字体对齐 VS Code：Maple Mono NF CN */
+* { font-family: "Maple Mono NF CN", -apple-system, sans-serif !important; }
+
+/* Catppuccin yellow (#f9e2af) 点缀：选中标签下划线 */
+.tabmail-tab[selected="true"] .tab-line,
+tab[selected="true"] .tab-line {
+  background-color: #f9e2af !important;
+}
+
+/* 淡黄：主操作按钮（New Message / 撰写 等 primary 按钮）*/
+button.button-primary, .button-primary,
+toolbarbutton.button-primary,
+#folderPaneWriteMessage, #composeButton {
+  background-color: #f9e2af !important;
+  color: #11111b !important;
+}

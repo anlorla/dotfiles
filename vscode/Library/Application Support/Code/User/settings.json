@@ -1,0 +1,134 @@
+{
+    "files.autoSave": "afterDelay",
+
+    // ---- 配色:Catppuccin Mocha,强调色改成配套黄色 ----
+    "workbench.colorTheme": "Catppuccin Mocha",
+    "catppuccin.accentColor": "yellow",
+
+    // ---- 选中高亮:去掉不搭的深蓝,统一成配套淡黄(编辑器/文件树/命令面板)----
+    "workbench.colorCustomizations": {
+        "[Catppuccin Mocha]": {
+            "editor.selectionBackground": "#f9e2af33",
+            "editor.inactiveSelectionBackground": "#f9e2af22",
+            "editor.selectionHighlightBackground": "#f9e2af22",
+            "selection.background": "#f9e2af33",
+            "list.activeSelectionBackground": "#f9e2af26",
+            "list.inactiveSelectionBackground": "#f9e2af1a",
+            "list.focusBackground": "#f9e2af26",
+            "list.activeSelectionForeground": "#cdd6f4",
+            "quickInputList.focusBackground": "#f9e2af26",
+            "terminal.selectionBackground": "#f9e2af40",
+            "terminal.inactiveSelectionBackground": "#f9e2af26"
+        }
+    },
+
+    // 语法高亮:把原本紫色(mauve)的关键字/存储类改成配套桃橙 peach,鲜明且与黄区分
+    "editor.tokenColorCustomizations": {
+        "[Catppuccin Mocha]": {
+            "textMateRules": [
+                {
+                    "scope": [
+                        "keyword",
+                        "keyword.control",
+                        "keyword.control.flow",
+                        "keyword.control.import",
+                        "keyword.control.conditional",
+                        "keyword.control.loop",
+                        "keyword.control.return",
+                        "keyword.declaration",
+                        "keyword.function",
+                        "storage",
+                        "storage.type",
+                        "storage.modifier"
+                    ],
+                    "settings": { "foreground": "#fab387" }
+                }
+            ]
+        }
+    },
+
+    // ---- 字体:Maple Mono NF CN(中英文等宽 + Nerd Font 图标 + 连字),与 WezTerm 同步 ----
+    "editor.fontFamily": "'Maple Mono NF CN', Menlo, Monaco, 'Courier New', monospace",
+    "editor.fontSize": 14,
+    "editor.fontLigatures": true,
+
+    // ---- 内置终端:同字体,字号接近默认 ----
+    "terminal.integrated.fontFamily": "'Maple Mono NF CN', Menlo, Monaco, monospace",
+    "terminal.integrated.fontSize": 12,
+    "terminal.integrated.cursorBlinking": true,
+    "terminal.integrated.cursorStyle": "block",
+
+    // ---- LaTeX:BasicTeX 没装 latexmk，所以不用 LaTeX Workshop 默认 recipe，
+    //      改成直接调引擎。第二遍是给 hyperref 的书签/交叉引用用。
+    //      命令写绝对路径：GUI 启动的 VSCode 不读 shell profile，PATH 里没有 /Library/TeX/texbin。----
+    "latex-workshop.latex.tools": [
+        {
+            "name": "pdflatex",
+            "command": "/Library/TeX/texbin/pdflatex",
+            "args": [
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "%DOC%"
+            ]
+        },
+        {
+            "name": "xelatex",
+            "command": "/Library/TeX/texbin/xelatex",
+            "args": [
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "%DOC%"
+            ]
+        },
+        {
+            // bibtex 要的是不带路径、不带扩展名的文件名，所以用 %DOCFILE% 而非 %DOC%
+            "name": "bibtex",
+            "command": "/Library/TeX/texbin/bibtex",
+            "args": ["%DOCFILE%"]
+        }
+    ],
+    "latex-workshop.latex.recipes": [
+        {
+            "name": "pdflatex ×2",
+            "tools": ["pdflatex", "pdflatex"]
+        },
+        {
+            // 中文/自定义字体用 xelatex
+            "name": "xelatex ×2",
+            "tools": ["xelatex", "xelatex"]
+        },
+        {
+            // 带参考文献时用（ResumeEnglish 那类有 .bbl 的项目）
+            "name": "pdflatex→bibtex→pdflatex×2",
+            "tools": ["pdflatex", "bibtex", "pdflatex", "pdflatex"]
+        },
+        {
+            "name": "xelatex→bibtex→xelatex×2",
+            "tools": ["xelatex", "bibtex", "xelatex", "xelatex"]
+        }
+    ],
+    // 记住上次用过的 recipe，避免每次手选（默认会用列表第一个）
+    "latex-workshop.latex.recipe.default": "lastUsed",
+    // 保存即编译（files.autoSave 已是 afterDelay，所以停手约 1 秒就会重编）
+    "latex-workshop.latex.autoBuild.run": "onSave",
+    // PDF 在 VSCode 标签页里预览，不弹外部阅读器
+    "latex-workshop.view.pdf.viewer": "tab",
+    // 双击 PDF 跳回源码（反向搜索）；依赖 .synctex.gz，所以下面清理列表里不能删它
+    "latex-workshop.view.pdf.internal.synctex.keybinding": "double-click",
+    // \usepackage 的宏包命令补全
+    "latex-workshop.intellisense.package.enabled": true,
+    "latex-workshop.showContextMenu": true,
+    // 编译完清掉辅助文件，只留 .pdf
+    // 注意：故意不清 *.synctex.gz（反向搜索要用）和 *.bbl（参考文献要用）
+    "latex-workshop.latex.autoClean.run": "onBuilt",
+    "latex-workshop.latex.clean.fileTypes": [
+        "*.aux", "*.log", "*.out", "*.toc", "*.fls", "*.fdb_latexmk",
+        "*.blg", "*.idx", "*.ind", "*.lof", "*.lot", "*.ist",
+        "*.acn", "*.acr", "*.alg", "*.glg", "*.glo", "*.gls"
+    ],
+    // 编译失败才弹日志面板，成功时不打扰
+    "latex-workshop.message.error.show": true,
+    "latex-workshop.message.warning.show": false
+}

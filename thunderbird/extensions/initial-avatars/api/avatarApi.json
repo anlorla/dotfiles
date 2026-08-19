@@ -1,0 +1,9 @@
+[
+  {
+    "namespace": "avatarApi",
+    "functions": [
+      { "name": "start", "type": "function", "async": true, "parameters": [] },
+      { "name": "stop",  "type": "function", "async": true, "parameters": [] }
+    ]
+  }
+]

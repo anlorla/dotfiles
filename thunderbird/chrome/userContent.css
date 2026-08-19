@@ -1,0 +1,59 @@
+/* Catppuccin yellow 点缀：邮件三栏界面（about:3pane） */
+@-moz-document url-prefix("about:3pane"), url-prefix("about:message") {
+  /* 未读数徽章 → 淡黄底深色字 */
+  .unread-count {
+    background-color: #f9e2af !important;
+    color: #11111b !important;
+  }
+  /* 有未读邮件的文件夹名 → 淡黄 */
+  li.unread > .container > .name,
+  .folder-tree-row.unread .name {
+    color: #f9e2af !important;
+  }
+  /* 邮件列表未读行的标题 → 淡黄 */
+  tr[data-properties~="unread"] .thread-card-subject-container .subject,
+  tr[data-properties~="unread"] td.subjectcol {
+    color: #f9e2af !important;
+  }
+}
+
+/* 选中行：淡黄半透明框（替代默认透明高亮）*/
+@-moz-document url-prefix("about:3pane") {
+  #threadTree tr.selected,
+  #threadTree tr[data-properties~="selected"] {
+    background-color: rgba(249,226,175,0.16) !important;
+    outline: 1px solid #f9e2af !important;
+    outline-offset: -1px !important;
+    color: #cdd6f4 !important;
+  }
+  #threadTree tr.selected.current {
+    background-color: rgba(249,226,175,0.24) !important;
+  }
+  #folderTree li.selected > .container {
+    background-color: rgba(249,226,175,0.16) !important;
+    outline: 1px solid #f9e2af !important;
+    outline-offset: -1px !important;
+  }
+}
+
+/* 设置页 / 账户设置 / 附加组件页：底色对齐 Catppuccin base，而非纯黑 */
+@-moz-document url-prefix("about:preferences"), url-prefix("about:accountsettings"), url-prefix("about:addons") {
+  :root {
+    --in-content-page-background: #1e1e2e !important;
+    --in-content-box-background: #181825 !important;
+    --in-content-box-background-hover: #313244 !important;
+    --in-content-box-info-background: #181825 !important;
+    --in-content-page-color: #cdd6f4 !important;
+    --in-content-text-color: #cdd6f4 !important;
+    --in-content-border-color: #313244 !important;
+    --in-content-category-background: #181825 !important;
+    --in-content-item-selected: rgba(249,226,175,0.16) !important;
+    --in-content-primary-button-background: #f9e2af !important;
+    --in-content-primary-button-text-color: #11111b !important;
+    --link-color: #f9e2af !important;
+  }
+  body, .pane-container, #preferences-root, .main-content {
+    background-color: #1e1e2e !important;
+    color: #cdd6f4 !important;
+  }
+}
