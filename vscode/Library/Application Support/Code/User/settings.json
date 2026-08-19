@@ -130,5 +130,10 @@
     ],
     // 编译失败才弹日志面板，成功时不打扰
     "latex-workshop.message.error.show": true,
-    "latex-workshop.message.warning.show": false
+    "latex-workshop.message.warning.show": false,
+
+    // ---- mathematic.vscode-latex 扩展的 linter 默认开着，但它依赖 chktex，
+    //      而 BasicTeX 不含 chktex，于是每次保存都报 "chktex could not be found"。
+    //      想开 lint：sudo tlmgr install chktex，然后把下面改回 true。----
+    "latex.linter.enabled": false
 }
