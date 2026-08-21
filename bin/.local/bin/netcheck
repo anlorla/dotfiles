@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# netcheck — 一眼看清各条网络路径的实际出口。
+#
+# 机器上并行跑着两套代理，用途不同，绝不能串：
+#   xray        127.0.0.1:1080/8080   美国   给 codex / claude（账号绑定出口，必须稳定）
+#   Clash Verge 127.0.0.1:7897        可切   给学校 VPN 容器和日常浏览
+#
+# 判定标准：codex/claude 那一行必须是 US。是别的就说明串了。
+
+set -uo pipefail
+
+c_grn=$'\e[32m'; c_red=$'\e[31m'; c_yel=$'\e[33m'; c_dim=$'\e[2m'; c_off=$'\e[0m'
+
+exit_of() {  # $1=代理地址（空=直连）
+    local proxy="${1:-}" args=(-s --max-time 12)
+    [[ -n "$proxy" ]] && args+=(-x "$proxy") || args+=(--noproxy '*')
+    # 注意：解析用 %-format 而非 f-string——Python 3.9 的 f-string 表达式里不能出现反斜杠，
+    # 而这段是嵌在 shell 单引号里的，引号必须转义。
+    curl "${args[@]}" https://ipinfo.io/json 2>/dev/null \
+      | python3 -c 'import json,sys
+try:
+    d = json.load(sys.stdin)
+    print("%s|%s|%s" % (d.get("ip","?"), d.get("country","?"), d.get("city","?")))
+except Exception:
+    print("|FAIL|")' 2>/dev/null || echo "|FAIL|"
+}
+
+row() {  # $1=名称 $2=代理 $3=期望国家（空=不判定）
+    local name="$1" proxy="$2" want="${3:-}"
+    local r ip cc city mark
+    r="$(exit_of "$proxy")"
+    ip="${r%%|*}"; city="${r##*|}"; cc="$(printf '%s' "$r" | cut -d'|' -f2)"
+    if [[ "$cc" == "FAIL" || -z "$ip" ]]; then
+        mark="${c_red}✗ 不通${c_off}"
+    elif [[ -n "$want" && "$cc" != "$want" ]]; then
+        mark="${c_red}✗ 期望 $want${c_off}"
+    else
+        mark="${c_grn}✓${c_off}"
+    fi
+    printf '  %-22s %-16s %-3s %-14s %s\n' "$name" "$ip" "$cc" "$city" "$mark"
+}
+
+printf '%s\n' "路径                   出口 IP          国家 城市"
+row "codex / claude"  "http://127.0.0.1:8080" "US"
+row "Clash Verge"     "http://127.0.0.1:7897" ""
+row "直连（无代理）"    ""                      ""
+
+echo
+# xray 必须活着，否则 codex/claude 会直接失败
+if nc -z 127.0.0.1 8080 2>/dev/null; then
+    printf '  %sxray 服务在线%s' "$c_grn" "$c_off"
+    launchctl list 2>/dev/null | grep -q com.sanquine.xray \
+        && printf '（launchd 常驻）\n' || printf '%s（未由 launchd 托管）%s\n' "$c_yel" "$c_off"
+else
+    printf '  %sxray 离线 — codex/claude 会连不上%s\n' "$c_red" "$c_off"
+    printf '  %s修复：launchctl kickstart -k gui/501/com.sanquine.xray%s\n' "$c_dim" "$c_off"
+fi
+
+# TUN 一旦打开，Clash 会在网卡层接管所有流量，xray 的连接也会被套进去
+tun="$(curl -s --unix-socket /tmp/verge/verge-mihomo.sock http://localhost/configs 2>/dev/null \
+       | python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("tun",{}).get("enable"))
+except Exception: print("?")' 2>/dev/null)"
+case "$tun" in
+    True)  printf '  %s⚠ Clash TUN 已开启：会接管全部流量，可能改变 codex 的实际路径%s\n' "$c_yel" "$c_off" ;;
+    False) printf '  %sClash TUN 关闭（两套代理互不干扰）%s\n' "$c_dim" "$c_off" ;;
+    *)     printf '  %sClash Verge 未运行或读不到配置%s\n' "$c_dim" "$c_off" ;;
+esac
+
+# 系统代理若被接管，未显式配置的程序会跟着走 Clash
+if scutil --proxy 2>/dev/null | grep -qE 'HTTPEnable : 1|SOCKSEnable : 1'; then
+    printf '  %s⚠ 系统代理已被接管（scutil --proxy 有值）%s\n' "$c_yel" "$c_off"
+else
+    printf '  %s系统代理未接管%s\n' "$c_dim" "$c_off"
+fi

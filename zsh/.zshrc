@@ -202,8 +202,5 @@ newproj() {
     cd "$base"
 }
 
-# === codex 自动走本地代理（xray 已由 launchd 常驻：com.sanquine.xray）— added 2026-08-18 ===
-codex() {
-    local p="http://127.0.0.1:8080"
-    all_proxy="$p" http_proxy="$p" https_proxy="$p" command codex "$@"
-}
+# codex 的代理固定在 ~/.local/bin/codex 包装脚本里（函数只在交互式 zsh 生效，
+# 从 VSCode 等启动就没了，所以改用 PATH 优先的脚本）。

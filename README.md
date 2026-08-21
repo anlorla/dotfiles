@@ -22,7 +22,7 @@ cd ~/dotfiles && stow -t ~ zsh tmux wezterm btop vscode bin
 | `wezterm` | `~/.config/wezterm/wezterm.lua` | 终端 |
 | `btop` | `~/.config/btop/` | 含 catppuccin_mocha 主题 |
 | `vscode` | `~/Library/Application Support/Code/User/settings.json` | 配色 + LaTeX 工具链 |
-| `bin` | `~/.local/bin/` | 自用小工具：`vpn`（管 colima + 校园 VPN 容器） |
+| `bin` | `~/.local/bin/` | `vpn` 管校园 VPN；`codex` 锁定走 xray；`netcheck` 查各路径出口 |
 | `thunderbird` | 见下 | **不走 stow**，用 `install.sh` |
 
 ## Thunderbird
@@ -54,3 +54,25 @@ profile 目录名带随机前缀（如 `ua8mevxz.default-release`），stow 无�
 以及两个带 `bibtex` 的（有参考文献时用）。`recipe.default` 设成 `lastUsed`。
 
 自动清理故意**不删** `*.synctex.gz`（双击 PDF 跳回源码要用）和 `*.bbl`（参考文献要用）。
+
+## 两套代理的分工（别串）
+
+| 用途 | 工具 | 端口 | 出口 |
+|---|---|---|---|
+| codex / claude | xray（launchd 常驻 `com.sanquine.xray`） | 1080 / 8080 | 美国，固定 |
+| 学校 VPN 容器、日常浏览 | Clash Verge | 7897 | 可切，当前香港 |
+
+codex 和 claude 的出口必须**始终是同一个美国 IP**（账号绑定），所以钉了两层：
+
+- `~/.local/bin/codex` 包装脚本显式注入 `http_proxy` 指向 xray。写成脚本而非
+  `.zshrc` 函数，是因为函数只在交互式 zsh 里存在，从 VSCode 启动就失效；
+  `~/.local/bin` 在 PATH 最前，脚本能盖住 brew 的 codex。
+- `~/.claude/settings.json` 的 `env` 段设 `HTTPS_PROXY`，Claude Code 无论
+  怎么启动都读得到。
+
+两处都是**显式指定代理**，所以 xray 挂了就直接失败，而不会悄悄改走 Clash 的
+香港出口——出口 IP 突变比连不上更麻烦。
+
+随时用 `netcheck` 核对：codex/claude 那一行不是 US 就说明串了。
+⚠️ 如果 Clash Verge 打开 TUN 模式，它会在网卡层接管所有流量（xray 自己的连接
+也会被套进去），`netcheck` 会对此告警。

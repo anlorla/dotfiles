@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# codex — 固定走 xray（美国出口）的包装器。
+#
+# 为什么是脚本而不是 .zshrc 里的函数：函数只在交互式 zsh 里存在，
+# 从 VSCode、cron、别的 shell 启动就没了。~/.local/bin 排在 PATH 最前，
+# 这个脚本能盖住 /opt/homebrew/bin/codex，任何启动方式都生效。
+#
+# 显式指定代理 = 失败即停：xray 挂了就连不上，而不会悄悄改走 Clash
+# 的香港出口——账号看到的出口 IP 必须始终是同一个。
+
+set -uo pipefail
+
+XRAY="http://127.0.0.1:8080"
+REAL="/opt/homebrew/bin/codex"
+
+[[ -x "$REAL" ]] || { echo "codex: 找不到真正的可执行文件 $REAL" >&2; exit 127; }
+
+if ! nc -z 127.0.0.1 8080 2>/dev/null; then
+    echo "codex: 警告 — xray (127.0.0.1:8080) 没响应，请求会失败。" >&2
+    echo "       检查：launchctl list | grep xray" >&2
+fi
+
+exec env \
+    http_proxy="$XRAY" https_proxy="$XRAY" all_proxy="$XRAY" \
+    HTTP_PROXY="$XRAY" HTTPS_PROXY="$XRAY" ALL_PROXY="$XRAY" \
+    no_proxy="localhost,127.0.0.1,::1" NO_PROXY="localhost,127.0.0.1,::1" \
+    "$REAL" "$@"
