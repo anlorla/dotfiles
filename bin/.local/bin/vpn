@@ -10,9 +10,18 @@
 set -uo pipefail
 
 CONTAINER="hkustgz-vpn"
+IMAGE="hagb/docker-easyconnect:7.6.7"
 VNC_PORT=5901
 HTTP_PROXY_PORT=8888
 SOCKS_PORT=11080
+
+# EasyConnect 自己连不通学校网关（colima 的用户态网络到该网关不稳定，
+# 选线路 15 秒就超时），所以让它借道 Clash Verge。192.168.5.2 是容器眼里的宿主机。
+# no_proxy 必须写：EasyConnect 界面要访问容器内的 127.0.0.1:54530 找本地 agent，
+# 漏了就会全部走代理然后失败，界面报 local env error。
+UPSTREAM="http://192.168.5.2:7897"
+NOPROXY="127.0.0.1,localhost,::1"
+VNC_PASSWORD="0e963ac8"
 
 c_red=$'\e[31m'; c_grn=$'\e[32m'; c_yel=$'\e[33m'; c_dim=$'\e[2m'; c_off=$'\e[0m'
 ok()   { printf '%s✓%s %s\n' "$c_grn" "$c_off" "$1"; }
@@ -63,14 +72,30 @@ cmd_status() {
     fi
 }
 
+create_container() {
+    docker run -d --name "${CONTAINER}" \
+        --restart unless-stopped \
+        --cap-add=NET_ADMIN --device /dev/net/tun \
+        -e PASSWORD="${VNC_PASSWORD}" -e URLWIN=1 \
+        -e DISABLE_PKG_VERSION_XML=1 -e PING_INTERVAL=1800 \
+        -e http_proxy="${UPSTREAM}" -e https_proxy="${UPSTREAM}" \
+        -e no_proxy="${NOPROXY}" -e NO_PROXY="${NOPROXY}" \
+        -v "${HOME}/.ecdata:/rootvolume" \
+        -p "127.0.0.1:${VNC_PORT}:5901" \
+        -p "127.0.0.1:${SOCKS_PORT}:1080" \
+        -p "127.0.0.1:${HTTP_PROXY_PORT}:8888" \
+        "${IMAGE}" >/dev/null
+}
+
 cmd_start() {
     colima_running || { echo "启动 colima 虚拟机（约 20 秒）…"; colima start || exit 1; }
     ok "colima 就绪"
     if container_exists; then
         container_running || { docker start "${CONTAINER}" >/dev/null && ok "容器已启动"; }
     else
-        bad "容器 ${CONTAINER} 不存在，需要先 docker run 创建"
-        exit 1
+        echo "容器不存在，按既定参数创建…"
+        create_container && ok "容器已创建" || { bad "创建失败"; exit 1; }
+        sleep 6
     fi
     echo
     cmd_status
@@ -110,6 +135,9 @@ case "${1:-status}" in
     start|up)    cmd_start ;;
     stop|down)   cmd_stop ;;
     restart)     cmd_stop; echo; cmd_start ;;
+    recreate)    docker rm -f "${CONTAINER}" >/dev/null 2>&1
+                 create_container && ok "容器已按当前参数重建（~/.ecdata 里的登录配置保留）"
+                 sleep 6; echo; cmd_status ;;
     login|vnc)   cmd_login ;;
     log|logs)    cmd_log ;;
     env)         cmd_env ;;
@@ -121,6 +149,7 @@ case "${1:-status}" in
   start     启动 colima 和容器
   stop      停掉容器和 colima（省电）
   restart   重启
+  recreate  按脚本里的参数重建容器（改了代理等参数后用）
   login     打开 VNC 登录 EasyConnect（顺带显示 VNC 密码）
   log       看 EasyConnect 网络日志，连不上时排查用
   env       输出代理变量：eval \$(vpn env)

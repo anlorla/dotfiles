@@ -76,3 +76,26 @@ codex 和 claude 的出口必须**始终是同一个美国 IP**（账号绑定�
 随时用 `netcheck` 核对：codex/claude 那一行不是 US 就说明串了。
 ⚠️ 如果 Clash Verge 打开 TUN 模式，它会在网卡层接管所有流量（xray 自己的连接
 也会被套进去），`netcheck` 会对此告警。
+
+## 校园 VPN（colima + EasyConnect 容器）
+
+```sh
+vpn start     # 起 colima，容器会跟着起（restart=unless-stopped）
+vpn login     # 打开 VNC，在里面登录 EasyConnect
+vpn status    # 看 colima / 容器 / 隧道三层
+vpn stop      # 全停，省电
+```
+
+隧道状态看的是容器里有没有 `tun` 网卡，而不是容器是否 Up——EasyConnect
+没登录时容器照样 Up，只看容器会误判成正常。
+
+**两个踩过的坑**（都写进 `create_container` 了，别手写 docker run）：
+
+1. EasyConnect 直连学校网关不稳定（colima 用户态网络的问题，选线路 15 秒
+   超时就报 Path selection failed），所以让它借道 Clash Verge：
+   `http_proxy=http://192.168.5.2:7897`，`192.168.5.2` 是容器眼里的宿主机。
+2. 必须同时设 `no_proxy=127.0.0.1,localhost`。EasyConnect 界面要访问容器内
+   `127.0.0.1:54530` 找本地 agent，漏了这条就会连本地请求也走代理然后全部
+   失败，界面报 **local env error**。
+
+改了参数用 `vpn recreate`，登录配置在 `~/.ecdata`，重建不丢。
