@@ -3,7 +3,8 @@
 #
 # 机器上并行跑着两套代理，用途不同，绝不能串：
 #   xray        127.0.0.1:1080/8080   美国   给 codex / claude（账号绑定出口，必须稳定）
-#   Clash Verge 127.0.0.1:7897        可切   给学校 VPN 容器和日常浏览
+#   Clash Verge 127.0.0.1:7897        可切   给邮件、学校 VPN 容器和日常浏览
+#   校园 VPN    127.0.0.1:8888/11080  校内   容器里的 EasyConnect，分流：仅校内资源走隧道
 #
 # 判定标准：codex/claude 那一行必须是 US。是别的就说明串了。
 
@@ -16,36 +17,70 @@ exit_of() {  # $1=代理地址（空=直连）
     [[ -n "$proxy" ]] && args+=(-x "$proxy") || args+=(--noproxy '*')
     # 注意：解析用 %-format 而非 f-string——Python 3.9 的 f-string 表达式里不能出现反斜杠，
     # 而这段是嵌在 shell 单引号里的，引号必须转义。
-    curl "${args[@]}" https://ipinfo.io/json 2>/dev/null \
-      | python3 -c 'import json,sys
-try:
-    d = json.load(sys.stdin)
-    print("%s|%s|%s" % (d.get("ip","?"), d.get("country","?"), d.get("city","?")))
-except Exception:
-    print("|FAIL|")' 2>/dev/null || echo "|FAIL|"
+    # 用 Cloudflare 的 trace 取 IP 和国家：无速率限制。
+    # （之前用 ipinfo.io，一次 netcheck 查三条路径就会撞 429，把正常的链路误报成不通。）
+    curl "${args[@]}" https://www.cloudflare.com/cdn-cgi/trace 2>/dev/null \
+      | python3 -c 'import sys
+d = dict(l.split("=",1) for l in sys.stdin.read().splitlines() if "=" in l)
+ip, loc = d.get("ip"), d.get("loc")
+print("%s|%s|" % (ip, loc) if ip else "|FAIL|")' 2>/dev/null || echo "|FAIL|"
+}
+
+# 中日韩字符显示占两列，但 printf 的 %-Ns 按字节补白，直接用会错位。
+pad() {  # $1=文本 $2=目标显示宽度
+    python3 -c 'import sys,unicodedata
+t,w=sys.argv[1],int(sys.argv[2])
+d=sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in t)
+sys.stdout.write(t+" "*max(0,w-d))' "$1" "$2"
 }
 
 row() {  # $1=名称 $2=代理 $3=期望国家（空=不判定）
     local name="$1" proxy="$2" want="${3:-}"
     local r ip cc city mark
     r="$(exit_of "$proxy")"
+    [[ "$r" == "|FAIL|" || "${r%%|*}" == "?" ]] && r="$(exit_of "$proxy")"   # 抖动重试一次
     ip="${r%%|*}"; city="${r##*|}"; cc="$(printf '%s' "$r" | cut -d'|' -f2)"
-    if [[ "$cc" == "FAIL" || -z "$ip" ]]; then
+    if [[ "$cc" == "FAIL" || -z "$ip" || "$ip" == "?" ]]; then
         mark="${c_red}✗ 不通${c_off}"
     elif [[ -n "$want" && "$cc" != "$want" ]]; then
         mark="${c_red}✗ 期望 $want${c_off}"
     else
         mark="${c_grn}✓${c_off}"
     fi
-    printf '  %-22s %-16s %-3s %-14s %s\n' "$name" "$ip" "$cc" "$city" "$mark"
+    printf '  %s %-16s %-4s %s\n' "$(pad "$name" 20)" "$ip" "$cc" "$mark"
 }
 
-printf '%s\n' "路径                   出口 IP          国家 城市"
+printf '  %s %-16s %s\n' "$(pad "路径" 20)" "出口 IP" "国家"
 row "codex / claude"  "http://127.0.0.1:8080" "US"
 row "Clash Verge"     "http://127.0.0.1:7897" ""
 row "直连（无代理）"    ""                      ""
 
 echo
+# Thunderbird 的代理写在 profile 里，改过就容易忘，直接读出来
+tb_prefs="$(ls -d "${HOME}"/Library/Thunderbird/Profiles/*.default-release 2>/dev/null | head -1)/prefs.js"
+if [[ -f "${tb_prefs}" ]]; then
+    tb_port="$(sed -n 's/.*"network\.proxy\.socks_port", \([0-9]*\).*/\1/p' "${tb_prefs}" | tail -1)"
+    case "${tb_port}" in
+        1080) printf '  %s邮件 (Thunderbird)：走 xray（美国，慢约 3 倍）%s\n' "${c_yel}" "${c_off}" ;;
+        7897) printf '  %s邮件 (Thunderbird)：走 Clash%s\n' "${c_dim}" "${c_off}" ;;
+        "")   printf '  %s邮件 (Thunderbird)：未设代理（直连）%s\n' "${c_dim}" "${c_off}" ;;
+        *)    printf '  %s邮件 (Thunderbird)：走 127.0.0.1:%s%s\n' "${c_dim}" "${tb_port}" "${c_off}" ;;
+    esac
+fi
+
+# 校园 VPN：容器没开也要能优雅报告，不能让 netcheck 卡住或报错
+if [[ "$(docker inspect -f '{{.State.Running}}' hkustgz-vpn 2>/dev/null)" == "true" ]]; then
+    if curl -s -o /dev/null -m 10 -x "http://127.0.0.1:8888" https://www.baidu.com 2>/dev/null; then
+        printf '  %s校园 VPN：已登录，8888 / 11080 可用%s%s（分流：仅校内资源走隧道）%s\n' \
+            "${c_grn}" "${c_off}" "${c_dim}" "${c_off}"
+    else
+        printf '  %s校园 VPN：容器在跑但代理不通 —— 多半是没登录%s\n' "${c_yel}" "${c_off}"
+        printf '  %s修复：vpn login%s\n' "${c_dim}" "${c_off}"
+    fi
+else
+    printf '  %s校园 VPN：未启动（需要时 vpn start）%s\n' "${c_dim}" "${c_off}"
+fi
+
 # xray 必须活着，否则 codex/claude 会直接失败
 if nc -z 127.0.0.1 8080 2>/dev/null; then
     printf '  %sxray 服务在线%s' "$c_grn" "$c_off"

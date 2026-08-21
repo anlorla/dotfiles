@@ -60,7 +60,12 @@ profile 目录名带随机前缀（如 `ua8mevxz.default-release`），stow 无�
 | 用途 | 工具 | 端口 | 出口 |
 |---|---|---|---|
 | codex / claude | xray（launchd 常驻 `com.sanquine.xray`） | 1080 / 8080 | 美国，固定 |
-| 学校 VPN 容器、日常浏览 | Clash Verge | 7897 | 可切，当前香港 |
+| 邮件、学校 VPN 容器、日常浏览 | Clash Verge | 7897 | 可切，当前香港 |
+| 校内资源 | 容器里的 EasyConnect | 8888 / 11080 | 校内（分流） |
+
+Thunderbird 原本也走 xray，实测邮件服务器建连 1800ms——绕道美国白跑一万公里。
+改走 Clash（香港）后降到 300–550ms。邮件不像 codex 那样绑定出口 IP，换节点最多
+多收几封"新设备登录"提醒，所以这里优先选快的。代价是 **Clash 关掉邮件就收不了**。
 
 codex 和 claude 的出口必须**始终是同一个美国 IP**（账号绑定），所以钉了两层：
 
