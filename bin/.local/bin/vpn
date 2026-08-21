@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# vpn — 一条命令管住 colima + 校园 VPN 容器
+#
+# 背景：macOS 跑不了 Linux 容器，colima 起一个轻量 Linux 虚拟机；
+# 校园 VPN（深信服 EasyConnect）跑在里面的容器里，对外给出两个代理端口。
+#
+#   代理：HTTP 127.0.0.1:8888   SOCKS5 127.0.0.1:11080
+#   注意：翻墙用的 xray 是 1080/8080，两套互不相干，别混。
+
+set -uo pipefail
+
+CONTAINER="hkustgz-vpn"
+VNC_PORT=5901
+HTTP_PROXY_PORT=8888
+SOCKS_PORT=11080
+
+c_red=$'\e[31m'; c_grn=$'\e[32m'; c_yel=$'\e[33m'; c_dim=$'\e[2m'; c_off=$'\e[0m'
+ok()   { printf '%s✓%s %s\n' "$c_grn" "$c_off" "$1"; }
+warn() { printf '%s!%s %s\n' "$c_yel" "$c_off" "$1"; }
+bad()  { printf '%s✗%s %s\n' "$c_red" "$c_off" "$1"; }
+dim()  { printf '%s%s%s\n' "$c_dim" "$1" "$c_off"; }
+
+colima_running() { colima status >/dev/null 2>&1; }
+container_running() {
+    [[ "$(docker inspect -f '{{.State.Running}}' "${CONTAINER}" 2>/dev/null)" == "true" ]]
+}
+container_exists() { docker inspect "${CONTAINER}" >/dev/null 2>&1; }
+
+# VPN 隧道是否真的建立：容器里出现 tun 网卡才算连上。
+# 只看容器在跑是不够的——EasyConnect 没登录时容器照样是 Up。
+tunnel_up() {
+    docker exec "${CONTAINER}" sh -c 'cat /proc/net/dev' 2>/dev/null | grep -q 'tun'
+}
+
+cmd_status() {
+    if colima_running; then
+        ok "colima 虚拟机：运行中"
+    else
+        bad "colima 虚拟机：已停止"
+        dim "  → vpn start"
+        return
+    fi
+
+    if ! container_exists; then
+        bad "容器 ${CONTAINER} 不存在"
+        return
+    fi
+    if container_running; then
+        ok "容器 ${CONTAINER}：运行中"
+    else
+        bad "容器 ${CONTAINER}：已停止"
+        dim "  → vpn start"
+        return
+    fi
+
+    if tunnel_up; then
+        ok "VPN 隧道：已建立"
+        printf '  HTTP  代理 127.0.0.1:%s\n' "${HTTP_PROXY_PORT}"
+        printf '  SOCKS 代理 127.0.0.1:%s\n' "${SOCKS_PORT}"
+    else
+        warn "VPN 隧道：未建立（EasyConnect 尚未登录）"
+        dim "  → vpn login   然后在图形界面里登录"
+    fi
+}
+
+cmd_start() {
+    colima_running || { echo "启动 colima 虚拟机（约 20 秒）…"; colima start || exit 1; }
+    ok "colima 就绪"
+    if container_exists; then
+        container_running || { docker start "${CONTAINER}" >/dev/null && ok "容器已启动"; }
+    else
+        bad "容器 ${CONTAINER} 不存在，需要先 docker run 创建"
+        exit 1
+    fi
+    echo
+    cmd_status
+}
+
+cmd_stop() {
+    container_running && docker stop "${CONTAINER}" >/dev/null && ok "容器已停止"
+    colima_running && { colima stop >/dev/null 2>&1 && ok "colima 已停止（释放内存和电量）"; }
+}
+
+cmd_login() {
+    container_running || { bad "容器没在跑，先 vpn start"; exit 1; }
+    local pw
+    pw="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "${CONTAINER}" \
+          2>/dev/null | sed -n 's/^PASSWORD=//p')"
+    echo "打开 VNC，在图形界面里登录 EasyConnect。"
+    [[ -n "$pw" ]] && printf 'VNC 密码：%s%s%s（不是学校账号密码）\n' "$c_yel" "$pw" "$c_off"
+    open "vnc://127.0.0.1:${VNC_PORT}"
+}
+
+cmd_log() {
+    container_running || { bad "容器没在跑"; exit 1; }
+    docker exec "${CONTAINER}" sh -c \
+        'tail -n 30 /usr/share/sangfor/EasyConnect/resources/logs/ECAgent.log' 2>/dev/null \
+        || bad "读不到日志"
+}
+
+# 打印 export 语句，用 eval $(vpn env) 让当前 shell 走校园代理
+cmd_env() {
+    echo "export http_proxy=http://127.0.0.1:${HTTP_PROXY_PORT}"
+    echo "export https_proxy=http://127.0.0.1:${HTTP_PROXY_PORT}"
+    echo "export all_proxy=socks5://127.0.0.1:${SOCKS_PORT}"
+}
+
+case "${1:-status}" in
+    status|st)   cmd_status ;;
+    start|up)    cmd_start ;;
+    stop|down)   cmd_stop ;;
+    restart)     cmd_stop; echo; cmd_start ;;
+    login|vnc)   cmd_login ;;
+    log|logs)    cmd_log ;;
+    env)         cmd_env ;;
+    *)
+        cat <<EOF
+用法: vpn <命令>
+
+  status    看 colima / 容器 / 隧道三层状态（默认）
+  start     启动 colima 和容器
+  stop      停掉容器和 colima（省电）
+  restart   重启
+  login     打开 VNC 登录 EasyConnect（顺带显示 VNC 密码）
+  log       看 EasyConnect 网络日志，连不上时排查用
+  env       输出代理变量：eval \$(vpn env)
+
+代理端口：HTTP 127.0.0.1:${HTTP_PROXY_PORT}  SOCKS5 127.0.0.1:${SOCKS_PORT}
+EOF
+        ;;
+esac

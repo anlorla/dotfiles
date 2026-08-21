@@ -8,7 +8,7 @@ macOS 上的个人配置。整体风格统一为 **Catppuccin Mocha + 黄色强�
 
 ```sh
 brew install stow
-cd ~/dotfiles && stow -t ~ zsh tmux wezterm btop vscode
+cd ~/dotfiles && stow -t ~ zsh tmux wezterm btop vscode bin
 ```
 
 移除某个包：`stow -D -t ~ <包名>`
@@ -22,6 +22,7 @@ cd ~/dotfiles && stow -t ~ zsh tmux wezterm btop vscode
 | `wezterm` | `~/.config/wezterm/wezterm.lua` | 终端 |
 | `btop` | `~/.config/btop/` | 含 catppuccin_mocha 主题 |
 | `vscode` | `~/Library/Application Support/Code/User/settings.json` | 配色 + LaTeX 工具链 |
+| `bin` | `~/.local/bin/` | 自用小工具：`vpn`（管 colima + 校园 VPN 容器） |
 | `thunderbird` | 见下 | **不走 stow**，用 `install.sh` |
 
 ## Thunderbird
